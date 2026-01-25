@@ -17,14 +17,21 @@ export default function Header() {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center">
-          <Image src="/logo.png" alt="logo" width={44} height={44} priority />
+          {/* <Image src="/logo.png" alt="logo" width={44} height={44} priority /> */}
+          <Image
+            src="/logo.png"
+            alt="logo"
+            width={44}
+            height={44}
+            priority
+          />
         </Link>
 
         <div className="flex items-center">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setShowUpgradeModal(true)} 
+            onClick={() => setShowUpgradeModal(true)}
           >
             Pricing
           </Button>

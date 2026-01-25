@@ -56,7 +56,7 @@
 // });
 
 
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 export const store = mutation({
@@ -86,5 +86,20 @@ export const store = mutation({
       hasCompletedOnboarding: false,
       freeEventsCreated: 0,
     });
+  },
+});
+
+export const getCurrentUser = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return null;
+    }
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
+    return user;
   },
 });
