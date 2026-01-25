@@ -111,6 +111,16 @@ export default function SearchLocationBar() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) {
+        return <div className="w-full h-9 bg-muted animate-pulse rounded-md" />;
+    }
+
     return (
         <div className="flex items-center">
             {/* Search Bar */}
