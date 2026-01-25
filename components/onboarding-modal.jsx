@@ -264,3 +264,4 @@ export default function OnboardingModal({ isOpen, onClose, onComplete }) {
         </Dialog>
     );
 }
+

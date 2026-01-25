@@ -1,59 +1,91 @@
 "use client";
 
-import Image from "next/image";
+import React, { useState } from "react";
 import Link from "next/link";
-import { SignInButton, UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
-import { Button } from "./ui/button";
+import Image from "next/image";
+import { Building, Crown, Plus, Ticket } from "lucide-react";
+import { SignInButton, useAuth, UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import { BarLoader } from "react-spinners";
 import { useStoreUserEffect } from "../hooks/use-store-user";
 import { useOnboarding } from "../hooks/use-onboarding";
-import React, { useState } from "react";
-import { Building, Plus, Ticket } from "lucide-react";
 import OnboardingModal from "./onboarding-modal";
+import SearchLocationBar from "./search-location-bar";
+import { Button } from "./ui/button";
+import UpgradeModal from "./upgrade-modal";
+import { Badge } from "./ui/badge";
 
 export default function Header() {
-  const { isLoading } = useStoreUserEffect();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
+  const { isLoading } = useStoreUserEffect();
   const { showOnboarding, handleOnboardingComplete, handleOnboardingSkip } =
     useOnboarding();
 
+  const { has } = useAuth();
+  const hasPro = has?.({ plan: "pro" });
+
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b">
-        {/* ... existing nav content ... */}
+      <nav className="fixed top-0 left-0 right-0 bg-background/80 backdrop-blur-xl z-20 border-b">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          {/* Logo */}
           <Link href="/" className="flex items-center">
-            {/* <Image src="/logo.png" alt="logo" width={44} height={44} priority /> */}
             <Image
               src="/logo.png"
-              alt="logo"
-              width={44}
-              height={44}
+              alt="event.ai logo"
+              width={500}
+              height={500}
+              className="w-full h-11"
               priority
             />
+            {hasPro && (
+              <Badge className="bg-linear-to-r from-pink-500 to-orange-500 gap-1 text-white ml-3">
+                <Crown className="w-3 h-3" />
+                Pro
+              </Badge>
+            )}
           </Link>
 
+          {/* Search & Location - Desktop Only */}
+          <div className="hidden md:flex flex-1 justify-center">
+            <SearchLocationBar />
+          </div>
+
+          {/* Right Side Actions */}
           <div className="flex items-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowUpgradeModal(true)}
-            >
-              Pricing
-            </Button>
-            <Button variant="ghost" size="sm" asChild className="mr-2">
+            {/* Show Pro badge or Upgrade button */}
+            {!hasPro && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowUpgradeModal(true)}
+              >
+                Pricing
+              </Button>
+            )}
+
+            <Button variant="ghost" size="sm" asChild className={"mr-2"}>
               <Link href="/explore">Explore</Link>
             </Button>
 
             <SignedIn>
-              <Link href="/create-event">
-                <Button className="flex gap-2 mr-4">
+              {/* Create Event Button */}
+              <Button size="sm" asChild className="flex gap-2 mr-4">
+                <Link href="/create-event">
                   <Plus className="w-4 h-4" />
                   <span className="hidden sm:inline">Create Event</span>
-                </Button>
-              </Link>
-              <UserButton>
+                </Link>
+              </Button>
+
+              {/* User Button */}
+              <UserButton
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    avatarBox: "w-9 h-9",
+                  },
+                }}
+              >
                 <UserButton.MenuItems>
                   <UserButton.Link
                     label="My Tickets"
@@ -66,7 +98,6 @@ export default function Header() {
                     href="/my-events"
                   />
                   <UserButton.Action label="manageAccount" />
-                  <UserButton.Action label="signOut" />
                 </UserButton.MenuItems>
               </UserButton>
             </SignedIn>
@@ -79,17 +110,29 @@ export default function Header() {
           </div>
         </div>
 
+        {/* Mobile Search & Location - Below Header */}
+        <div className="md:hidden border-t px-3 py-3">
+          <SearchLocationBar />
+        </div>
+
         {!isLoading && (
           <div className="absolute bottom-0 left-0 w-full">
-            <BarLoader width="100%" color="#a855f7" />
+            <BarLoader width={"100%"} color="#a855f7" />
           </div>
         )}
       </nav>
 
+      {/* Onboarding Modal */}
       <OnboardingModal
         isOpen={showOnboarding}
         onClose={handleOnboardingSkip}
         onComplete={handleOnboardingComplete}
+      />
+
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        trigger="header"
       />
     </>
   );
