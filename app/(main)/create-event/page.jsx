@@ -116,7 +116,7 @@ export default function CreateEventPage() {
 
     // Color presets - show all for Pro, only default for Free
     const colorPresets = [
-        "#1040a8ff", // Default color (always available)
+        "#1e3a8a", // Default color (always available)
         ...(hasPro ? ["#30135cff", "#065f46", "#92400e", "#7f1d1d", "#831843"] : []),
     ];
 
@@ -160,7 +160,7 @@ export default function CreateEventPage() {
             setShowUpgradeModal(true);
             return;
         }
-        setValue("themeColor", color);      
+        setValue("themeColor", color);
     };
 
     const combineDateTime = (date, time) => {
@@ -193,7 +193,7 @@ export default function CreateEventPage() {
             }
 
             // Check if trying to use custom color without Pro
-            if (data.themeColor !== "#1040a8ff" && !hasPro) {
+            if (data.themeColor !== "#1e3a8a" && !hasPro) {
                 setUpgradeReason("color");
                 setShowUpgradeModal(true);
                 return;
@@ -358,6 +358,7 @@ export default function CreateEventPage() {
                                         <Button
                                             variant="outline"
                                             className="w-full justify-between"
+                                            suppressHydrationWarning
                                         >
                                             {startDate ? format(startDate, "PPP") : "Pick date"}
                                             <CalendarIcon className="w-4 h-4 opacity-60" />
@@ -393,6 +394,7 @@ export default function CreateEventPage() {
                                         <Button
                                             variant="outline"
                                             className="w-full justify-between"
+                                            suppressHydrationWarning
                                         >
                                             {endDate ? format(endDate, "PPP") : "Pick date"}
                                             <CalendarIcon className="w-4 h-4 opacity-60" />

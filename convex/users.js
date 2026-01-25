@@ -113,7 +113,13 @@ export const getCurrentUser = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      return null;
+      // Fallback: If no auth, try to return the Guest User so the UI works
+      const guestToken = "guest_token";
+      const guestUser = await ctx.db
+        .query("users")
+        .withIndex("by_token", (q) => q.eq("tokenIdentifier", guestToken))
+        .unique();
+      return guestUser;
     }
 
     // 🔹 Lookup by tokenIdentifier

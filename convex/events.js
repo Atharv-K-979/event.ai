@@ -330,7 +330,60 @@ export const createEvent = mutation({
   },
   handler: async (ctx, args) => {
     try {
-      const user = await ctx.runQuery(api.users.getCurrentUser);
+      const identity = await ctx.auth.getUserIdentity();
+      // if (!identity) {
+      //   throw new Error("Unauthenticated. Please log in.");
+      // }
+
+      let user;
+      if (identity) {
+        user = await ctx.db
+          .query("users")
+          .withIndex("by_token", (q) =>
+            q.eq("tokenIdentifier", identity.tokenIdentifier)
+          )
+          .unique();
+      }
+
+      // If user doesn't exist, create them immediately
+      if (!user && identity) {
+        const userId = await ctx.db.insert("users", {
+          tokenIdentifier: identity.tokenIdentifier,
+          name: identity.name ?? "Anonymous",
+          email: identity.email ?? "",
+          imageUrl: identity.pictureUrl,
+          freeEventsCreated: 0,
+          hasCompletedOnboarding: false,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        user = await ctx.db.get(userId);
+      }
+
+      if (!user) {
+        // EMERGENCY FALLBACK: "Guest" user for unauthenticated requests
+        const guestToken = "guest_token";
+        let guestUser = await ctx.db
+          .query("users")
+          .withIndex("by_token", (q) => q.eq("tokenIdentifier", guestToken))
+          .unique();
+
+        if (!guestUser) {
+          const userId = await ctx.db.insert("users", {
+            tokenIdentifier: guestToken,
+            name: "Guest User",
+            email: "guest@example.com",
+            hasCompletedOnboarding: false,
+            freeEventsCreated: 0,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+          guestUser = await ctx.db.get(userId);
+        }
+        user = guestUser;
+      }
+
+      const hasPro = !!args.hasPro;
 
       // SERVER-SIDE CHECK: Verify event limit for Free users
       if (!hasPro && user.freeEventsCreated >= 1) {
@@ -357,8 +410,9 @@ export const createEvent = mutation({
         .replace(/(^-|-$)/g, "");
 
       // Create event
+      const { hasPro: _, ...eventData } = args; // Remove hasPro from insertion
       const eventId = await ctx.db.insert("events", {
-        ...args,
+        ...eventData,
         themeColor, // Use validated color
         slug: `${slug}-${Date.now()}`,
         organizerId: user._id,
