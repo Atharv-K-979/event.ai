@@ -1,64 +1,57 @@
-// import { mutation } from "./_generated/server";
-// import { query } from "./_generated/server";
-// export const store = mutation({
-//   args: {},
-//   handler: async (ctx) => {
-//     const identity = await ctx.auth.getUserIdentity();
-//     if (!identity) {
-//       throw new Error("Called storeUser without authentication present");
-//     }
+// import { mutation, query } from "./_generated/server";
+// import { v } from "convex/values";
 
-//     // Check if we've already stored this identity before.
-//     // Note: If you don't want to define an index right away, you can use
-//     // ctx.db.query("users")
-//     //  .filter(q => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
-//     //  .unique();
-//     const user = await ctx.db
+// export const store = mutation({
+//   args: {
+//     tokenIdentifier: v.string(),
+//     name: v.string(),
+//     email: v.string(),
+//     imageUrl: v.optional(v.string()),
+//   },
+//   handler: async (ctx, args) => {
+//     const existing = await ctx.db
 //       .query("users")
 //       .withIndex("by_token", (q) =>
-//         q.eq("tokenIdentifier", identity.tokenIdentifier),
+//         q.eq("tokenIdentifier", args.tokenIdentifier)
 //       )
 //       .unique();
-//     if (user !== null) {
-//       // If we've seen this identity before but the name has changed, patch the value.
-//       if (user.name !== identity.name) {
-//         await ctx.db.patch(user._id, { name: identity.name });
-//       }
-//       return user._id;
+
+//     if (existing) {
+//       return existing._id;
 //     }
-//     // If it's a new identity, create a new `User`.
+
 //     return await ctx.db.insert("users", {
-//       name: identity.name ?? "Anonymous",
-//       tokenIdentifier: identity.tokenIdentifier,
-//       email: identity.email ?? "",
-//       imageUrl: identity.pictureUrl ?? "",
+//       tokenIdentifier: args.tokenIdentifier,
+//       name: args.name,
+//       email: args.email,
+//       imageUrl: args.imageUrl,
 //       hasCompletedOnboarding: false,
 //       freeEventsCreated: 0,
 //     });
 //   },
 // });
+
 // export const getCurrentUser = query({
 //   args: {},
 //   handler: async (ctx) => {
 //     const identity = await ctx.auth.getUserIdentity();
 //     if (!identity) {
-//     //   throw new Error("Called getCurrentUser without authentication present");
-//     return null;
+//       return null;
 //     }
 //     const user = await ctx.db
 //       .query("users")
-//       .withIndex("by_token", (q) =>
-//         q.eq("tokenIdentifier", identity.tokenIdentifier),
-//       )
+//       .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
 //       .unique();
 //     return user;
 //   },
 // });
 
 
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+// Store or update user from Clerk
 export const store = mutation({
   args: {
     tokenIdentifier: v.string(),
@@ -67,39 +60,98 @@ export const store = mutation({
     imageUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Called storeUser without authentication present");
+    }
+
+    // Check if we've already stored this identity before
+    const user = await ctx.db
       .query("users")
       .withIndex("by_token", (q) =>
-        q.eq("tokenIdentifier", args.tokenIdentifier)
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
       )
       .unique();
 
-    if (existing) {
-      return existing._id;
+    if (user !== null) {
+      // If we've seen this identity before but details changed, update them
+      const updates = {};
+      if (user.name !== identity.name) {
+        updates.name = identity.name ?? "Anonymous";
+      }
+      if (user.email !== identity.email) {
+        updates.email = identity.email ?? "";
+      }
+      if (user.imageUrl !== identity.pictureUrl) {
+        updates.imageUrl = identity.pictureUrl;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        updates.updatedAt = Date.now();
+        await ctx.db.patch(user._id, updates);
+      }
+
+      return user._id;
     }
 
+    // If it's a new identity, create a new user with defaults
     return await ctx.db.insert("users", {
-      tokenIdentifier: args.tokenIdentifier,
-      name: args.name,
-      email: args.email,
-      imageUrl: args.imageUrl,
+      email: identity.email ?? "",
+      tokenIdentifier: identity.tokenIdentifier,
+      name: identity.name ?? "Anonymous",
+      imageUrl: identity.pictureUrl,
       hasCompletedOnboarding: false,
       freeEventsCreated: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     });
   },
 });
 
+// Get current authenticated user
 export const getCurrentUser = query({
-  args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       return null;
     }
+
+    // 🔹 Lookup by tokenIdentifier
     const user = await ctx.db
       .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
       .unique();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
     return user;
+  },
+});
+
+// Complete onboarding (attendee preferences)
+export const completeOnboarding = mutation({
+  args: {
+    location: v.object({
+      city: v.string(),
+      state: v.optional(v.string()), // Added state field
+      country: v.string(),
+    }),
+    interests: v.array(v.string()), // Min 3 categories
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.runQuery(internal.users.getCurrentUser);
+
+    await ctx.db.patch(user._id, {
+      location: args.location,
+      interests: args.interests,
+      hasCompletedOnboarding: true,
+      updatedAt: Date.now(),
+    });
+
+    return user._id;
   },
 });

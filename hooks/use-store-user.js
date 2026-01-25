@@ -40,7 +40,7 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useConvexAuth } from "convex/react";
 import { api } from "../convex/_generated/api";
 
 export function useStoreUserEffect() {
@@ -48,8 +48,11 @@ export function useStoreUserEffect() {
   const storeUser = useMutation(api.users.store);
   const [stored, setStored] = useState(false);
 
+  const { isAuthenticated } = useConvexAuth();
+
   useEffect(() => {
-    if (!isLoaded || !user || stored) return;
+    // Wait for both Clerk (user) and Convex (isAuthenticated)
+    if (!isLoaded || !user || !isAuthenticated || stored) return;
 
     async function run() {
       await storeUser({
@@ -62,7 +65,7 @@ export function useStoreUserEffect() {
     }
 
     run();
-  }, [isLoaded, user, stored, storeUser]);
+  }, [isLoaded, user, isAuthenticated, stored, storeUser]);
 
   return {
     isLoading: isLoaded && !stored,

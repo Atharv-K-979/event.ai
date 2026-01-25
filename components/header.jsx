@@ -8,12 +8,14 @@ import { BarLoader } from "react-spinners";
 import { useStoreUserEffect } from "../hooks/use-store-user";
 import React, { useState } from "react";
 import { Building, Plus, Ticket } from "lucide-react";
+import OnboardingModal from "./onboarding-modal";
 
 export default function Header() {
   const { isLoading } = useStoreUserEffect();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   return (
+    <>
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center">
@@ -78,5 +80,8 @@ export default function Header() {
         </div>
       )}
     </nav>
-  );
+
+    <OnboardingModal/>
+    </>
+    );
 }
