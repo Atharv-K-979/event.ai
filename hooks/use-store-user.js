@@ -47,28 +47,40 @@ export function useStoreUserEffect() {
   const { user, isLoaded } = useUser();
   const storeUser = useMutation(api.users.store);
   const [stored, setStored] = useState(false);
-
   const { isAuthenticated } = useConvexAuth();
 
   useEffect(() => {
-    // Wait for both Clerk (user) and Convex (isAuthenticated)
-    if (!isLoaded || !user || !isAuthenticated || stored) return;
+    // If not loaded, or no user, or already stored, do nothing.
+    if (!isLoaded || !user || stored) return;
 
+    // If loaded and user exists, but not authenticated with Convex yet, wait.
+    if (!isAuthenticated) return;
+
+    // Define async function to store user
     async function run() {
-      await storeUser({
-        tokenIdentifier: user.id,
-        name: user.fullName ?? "Anonymous",
-        email: user.primaryEmailAddress?.emailAddress,
-        imageUrl: user.imageUrl,
-      });
-      setStored(true);
+      try {
+        await storeUser({
+          tokenIdentifier: user.id,
+          name: user.fullName ?? "Anonymous",
+          email: user.primaryEmailAddress?.emailAddress,
+          imageUrl: user.imageUrl,
+        });
+      } catch (error) {
+        console.error("Error storing user:", error);
+        // Even if it fails (e.g. unique constraint race constraint), 
+        // we mark as stored to stop the spinner. 
+        // The user likely exists or will be created next time.
+      } finally {
+        setStored(true);
+      }
     }
 
     run();
   }, [isLoaded, user, isAuthenticated, stored, storeUser]);
 
   return {
-    isLoading: isLoaded && !stored,
+    // Only show loading if Clerk is loaded, User exists, but we haven't finished "storing" (syncing) yet.
+    isLoading: isLoaded && user !== null && !stored,
     isAuthenticated: !!user && stored,
   };
 }

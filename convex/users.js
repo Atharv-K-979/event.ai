@@ -125,7 +125,8 @@ export const getCurrentUser = query({
       .unique();
 
     if (!user) {
-      throw new Error("User not found");
+      // User not found yet (maybe creation in progress)
+      return null;
     }
 
     return user;
